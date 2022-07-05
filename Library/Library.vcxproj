@@ -58,6 +58,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>library.def</ModuleDefinitionFile>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -79,6 +80,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>library.def</ModuleDefinitionFile>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -95,10 +97,10 @@
   <ItemGroup>
     <CustomBuild Include="..\FasmDll\fasmdll.asm">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\fasm\FASM.EXE ..\fasmdll\fasmdll.asm ..\FasmDll\fasmdll.dll</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">F:\tools\Mission6432\FasmDll\fasmdll.dll</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\fasm\FASM.EXE ..\fasmdll\fasmdll.asm ..\FasmDll\fasmdll.dll</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">F:\tools\Mission6432\FasmDll\fasmdll.dll</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\fasmdll\build.bat</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\FasmDll\fasmdll.dll</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\fasmdll\build.bat</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\FasmDll\fasmdll.dll</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

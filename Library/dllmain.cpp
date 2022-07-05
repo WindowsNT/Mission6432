@@ -19,14 +19,19 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
 #include <intrin.h>
 
+extern "C" __declspec(dllimport)
+void  __stdcall exp2(DWORD);
 
+#pragma comment(lib,"fasmdll.lib")
 extern "C" void __stdcall exp1(DWORD x)
 {
  //   MessageBox(0,L"Hello from 32-bit",L"32-bit DLL",MB_OK);
     __nop();
     __nop();
     __nop();
-//    MessageBeep(0);
+//    exp2(x);
+  //  GetCurrentProcess();
+    //MessageBeep(0);
     __nop();
     __nop();
     __nop();

@@ -14,7 +14,62 @@ extern "C"
 
 const wchar_t* xResult = L"xresult.xml";
 
-void PatchIAT(HINSTANCE h)
+DWORD GetExport(HINSTANCE h, const char* n)
+{
+    DWORD ulsize = 0;
+    IMAGE_EXPORT_DIRECTORY* pExportDir = (IMAGE_EXPORT_DIRECTORY*)ImageDirectoryEntryToData(h, TRUE, IMAGE_DIRECTORY_ENTRY_EXPORT, &ulsize);
+    if (!pExportDir)
+        return 0;
+    auto MAP = [&](DWORD off) -> DWORD
+    {
+        return DWORD((char*)h + off);
+    };
+
+    UINT32* export_addr_table = (UINT32*)MAP(pExportDir->AddressOfFunctions);
+    UINT32* export_nameptr_table = (UINT32*)MAP(pExportDir->AddressOfNames);
+    UINT16* export_ordinal_table = (UINT16*)MAP(pExportDir->AddressOfNameOrdinals);
+
+    for (SIZE_T i = 0; i < pExportDir->NumberOfFunctions; i++)
+    {
+        UINT32 ordinal = pExportDir->Base + i;
+
+        UINT32 export_rva = export_addr_table[i];
+
+/*        if (is_forwarder_rva(export_rva))
+        {
+            // TODO: special care must be taken here - we cannot resolve directly to a VA unless target module is memory mapped
+        }
+        else*/
+        {
+            BOOL found_symname = FALSE;
+            char symname[100];
+
+            // Loop through all exported names
+            for (SIZE_T j = 0; j < pExportDir->NumberOfNames; j++)
+            {
+                if (export_ordinal_table[j] == i)
+                {
+                    UINT32 export_symname_rva = export_nameptr_table[j];
+                    const char* export_symname = (const char*)MAP(export_symname_rva);
+                    found_symname = TRUE;
+
+                    if (_stricmp(n, export_symname) == 0)
+                        return MAP(export_symname_rva);
+
+                    // Copy export_symname into symname (i.e. using strncat or similar)
+                }
+            }
+            if (!found_symname)
+            {
+                snprintf(symname, 100, "#%i", ordinal);
+            }
+            // Print symname, ordinal, address
+        }
+    }
+    return 0;
+}
+
+void PatchIAT(HINSTANCE h,std::vector<std::tuple<std::string,void*>>* CustomLoading = 0)
 {
     PCHAR codeBase = (PCHAR)h;
     XML3::XML x(xResult);
@@ -81,10 +136,24 @@ void PatchIAT(HINSTANCE h)
                     if (fu.vv("n").GetValue() == (LPCSTR)&thunkData->Name)
                     {
                         V = fu.vv("p").GetValueUInt();
+
+                        if (CustomLoading)
+                        {
+                            for (auto& cc : *CustomLoading)
+                            {
+                                if (_stricmp(pszModName, std::get<0>(cc).c_str()) == 0)
+                                {
+                                    auto v2 = GetExport((HINSTANCE)std::get<1>(cc), (LPCSTR)&thunkData->Name);
+                                    if (v2)
+                                        V = v2;
+                                }
+                            }
+                        }
                         break;
                     }
                 }
             }
+
 
             // Patch it now...
             DWORD dwOldProtect = 0;
@@ -197,22 +266,24 @@ DWORD Run(const wchar_t* y, bool W, DWORD flg)
     return ec;
 }
 
-
-
-int main()
+std::vector<char> loadf(const wchar_t* f)
 {
-	const wchar_t* tf = L"..\\debug\\Library.dll";
-//	const wchar_t* tf = L"..\\fasmdll\\fasmdll.dll";
-	HANDLE hX = CreateFile(tf, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
-	LARGE_INTEGER sz = {};
-	GetFileSizeEx(hX, &sz);
-	std::vector<char> d(sz.QuadPart);
-	DWORD a = 0;
-	ReadFile(hX, d.data(), (DWORD)sz.LowPart, &a, 0);
-	CloseHandle(hX);
-	auto hDLL = MemoryLoadLibrary(d.data(), sz.QuadPart);
-	if (!hDLL)
-		return 0;
+    HANDLE hX = CreateFile(f, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
+    LARGE_INTEGER sz = {};
+    GetFileSizeEx(hX, &sz);
+    std::vector<char> d(sz.QuadPart);
+    DWORD a = 0;
+    ReadFile(hX, d.data(), (DWORD)sz.LowPart, &a, 0);
+    CloseHandle(hX);
+    return d;
+}
+
+HMEMORYMODULE LoadAndPatch(const wchar_t* tf, std::vector<std::tuple<std::string, void*>>* CustomLoading = 0)
+{
+    auto d = loadf(tf);
+    auto hDLL = MemoryLoadLibrary(d.data(), d.size());
+    if (!hDLL)
+        return 0;
 
     PMEMORYMODULE mm = (PMEMORYMODULE)hDLL;
     // Build the IAT
@@ -222,12 +293,25 @@ int main()
 #else
     Run(L"..\\Debug\\Get32Imports.exe xresult.xml", true, CREATE_NO_WINDOW);
 #endif
-    PatchIAT((HINSTANCE)mm->codeBase);
+    PatchIAT((HINSTANCE)mm->codeBase, CustomLoading);
+    return hDLL;
+}
+
+int main()
+{
+    std::vector<std::tuple<std::string, void*>> CustomPatching;
+
+    auto h1 = LoadAndPatch(L"..\\fasmdll\\fasmdll.dll",&CustomPatching);
+    auto h2 = LoadAndPatch(L"..\\debug\\library.dll", &CustomPatching);
+
+	auto exp1 = MemoryGetProcAddress(h2, "exp1");
+    auto exp2 = MemoryGetProcAddress(h1, "exp2");
 
 
-
-	auto exp1 = MemoryGetProcAddress(hDLL, "exp1");
-//	DebugBreak();
-	myf1(exp1,(DWORD)0);
-	MessageBox(0, L"Test Succeeded.", 0, 0);
+    //	DebugBreak();
+    if (exp1)
+    	myf1(exp1,(DWORD)0);
+    if (exp2)
+        myf1(exp2, (DWORD)0);
+    MessageBox(0, L"Test Succeeded.", 0, 0);
 }

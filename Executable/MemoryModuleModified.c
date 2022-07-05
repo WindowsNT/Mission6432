@@ -563,8 +563,8 @@ HMEMORYMODULE MemoryLoadLibraryEx(const void *data, size_t size,
     GetNativeSystemInfo(&sysInfo);
     alignedImageSize = AlignValueUp(old_header->OptionalHeader.SizeOfImage, sysInfo.dwPageSize);
     if (alignedImageSize != AlignValueUp(lastSectionEnd, sysInfo.dwPageSize)) {
-        SetLastError(ERROR_BAD_EXE_FORMAT);
-        return NULL;
+//        SetLastError(ERROR_BAD_EXE_FORMAT);
+  //      return NULL;
     }
 
     // reserve memory for image of library
