@@ -33,7 +33,6 @@ DWORD GetExport(HINSTANCE h, const char* n)
     {
         UINT32 ordinal = pExportDir->Base + i;
 
-        UINT32 export_rva = export_addr_table[i];
 
 /*        if (is_forwarder_rva(export_rva))
         {
@@ -54,7 +53,10 @@ DWORD GetExport(HINSTANCE h, const char* n)
                     found_symname = TRUE;
 
                     if (_stricmp(n, export_symname) == 0)
-                        return MAP(export_symname_rva);
+                    {
+                        UINT32 export_rva = export_addr_table[i];
+                        return MAP(export_rva);
+                    }
 
                     // Copy export_symname into symname (i.e. using strncat or similar)
                 }
@@ -69,7 +71,13 @@ DWORD GetExport(HINSTANCE h, const char* n)
     return 0;
 }
 
-void PatchIAT(HINSTANCE h,std::vector<std::tuple<std::string,void*>>* CustomLoading = 0)
+struct FANDP
+{
+    const char* f  = 0;
+    void* p = 0;
+};
+
+void PatchIAT(HINSTANCE h,std::vector<FANDP>* CustomLoading = 0)
 {
     PCHAR codeBase = (PCHAR)h;
     XML3::XML x(xResult);
@@ -141,9 +149,9 @@ void PatchIAT(HINSTANCE h,std::vector<std::tuple<std::string,void*>>* CustomLoad
                         {
                             for (auto& cc : *CustomLoading)
                             {
-                                if (_stricmp(pszModName, std::get<0>(cc).c_str()) == 0)
+                                if (_stricmp(pszModName, cc.f) == 0)
                                 {
-                                    auto v2 = GetExport((HINSTANCE)std::get<1>(cc), (LPCSTR)&thunkData->Name);
+                                    auto v2 = GetExport((HINSTANCE)cc.p, (LPCSTR)&thunkData->Name);
                                     if (v2)
                                         V = v2;
                                 }
@@ -268,7 +276,7 @@ DWORD Run(const wchar_t* y, bool W, DWORD flg)
 
 std::vector<char> loadf(const wchar_t* f)
 {
-    HANDLE hX = CreateFile(f, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
+    HANDLE hX = CreateFile(f, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     LARGE_INTEGER sz = {};
     GetFileSizeEx(hX, &sz);
     std::vector<char> d(sz.QuadPart);
@@ -278,7 +286,7 @@ std::vector<char> loadf(const wchar_t* f)
     return d;
 }
 
-HMEMORYMODULE LoadAndPatch(const wchar_t* tf, std::vector<std::tuple<std::string, void*>>* CustomLoading = 0)
+HMEMORYMODULE LoadAndPatch(const wchar_t* tf, std::vector<FANDP>* CustomLoading = 0)
 {
     auto d = loadf(tf);
     auto hDLL = MemoryLoadLibrary(d.data(), d.size());
@@ -299,18 +307,34 @@ HMEMORYMODULE LoadAndPatch(const wchar_t* tf, std::vector<std::tuple<std::string
 
 int main()
 {
-    std::vector<std::tuple<std::string, void*>> CustomPatching;
+    std::vector<FANDP> CustomPatching;
+    auto h2 = LoadAndPatch(L"f:\\tools\\mission6432\\debug\\Library.dll" , &CustomPatching);
+    if (!h2)
+        return 0;
+    PMEMORYMODULE ph2 = ((PMEMORYMODULE)h2);
+    FANDP fa = { "library.dll", (void*)(ph2->codeBase)};
+    CustomPatching.push_back(fa);
 
-    auto h1 = LoadAndPatch(L"..\\fasmdll\\fasmdll.dll",&CustomPatching);
-    auto h2 = LoadAndPatch(L"..\\debug\\library.dll", &CustomPatching);
+    if (0)
+    {
+        auto h21 = LoadAndPatch(L"c:\\windows\\syswow64\\kernel32.dll", &CustomPatching);
+        if (!h21)
+            return 0;
+        PMEMORYMODULE ph2 = ((PMEMORYMODULE)h21);
+        FANDP fa = { "kernel32.dll", (void*)(ph2->codeBase) };
+        CustomPatching.push_back(fa);
+    }
+
+    auto h1 = LoadAndPatch(L"f:\\tools\\mission6432\\fasmdll\\fasmdll.dll", &CustomPatching);
+    if (!h1)
+        return 0;
 
 	auto exp1 = MemoryGetProcAddress(h2, "exp1");
     auto exp2 = MemoryGetProcAddress(h1, "exp2");
 
-
-    //	DebugBreak();
     if (exp1)
     	myf1(exp1,(DWORD)0);
+//    DebugBreak();
     if (exp2)
         myf1(exp2, (DWORD)0);
     MessageBox(0, L"Test Succeeded.", 0, 0);

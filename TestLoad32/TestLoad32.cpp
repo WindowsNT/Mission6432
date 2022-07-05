@@ -8,8 +8,8 @@ typedef void(__stdcall* x)(DWORD);
 
 int main()
 {
-	const wchar_t* tf = L"..\\debug\\Library.dll";
-//	const wchar_t* tf = L"..\\fasmdll\\fasmdll.dll";
+//	const wchar_t* tf = L"..\\debug\\Library.dll";
+	const wchar_t* tf = L"..\\fasmdll\\fasmdll.dll";
 
 //#define CALL_2
 
@@ -27,7 +27,7 @@ int main()
 	ReadFile(hX, d.data(), (DWORD)sz.LowPart, &a, 0);
 	CloseHandle(hX);
 	auto hDLL = MemoryLoadLibrary(d.data(), sz.QuadPart);
-	auto exp1 = MemoryGetProcAddress(hDLL, "exp1");
+	auto exp1 = MemoryGetProcAddress(hDLL, "exp2");
 	PMEMORYMODULE mm = (PMEMORYMODULE)hDLL;
 	x X = (x)exp1;
 	X((DWORD)mm->codeBase);
