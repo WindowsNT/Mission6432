@@ -308,7 +308,7 @@ HMEMORYMODULE LoadAndPatch(const wchar_t* tf, std::vector<FANDP>* CustomLoading 
 int main()
 {
     std::vector<FANDP> CustomPatching;
-    auto h2 = LoadAndPatch(L"f:\\tools\\mission6432\\debug\\Library.dll" , &CustomPatching);
+    auto h2 = LoadAndPatch(L"..\\debug\\Library.dll" , &CustomPatching);
     if (!h2)
         return 0;
     PMEMORYMODULE ph2 = ((PMEMORYMODULE)h2);
@@ -325,7 +325,7 @@ int main()
         CustomPatching.push_back(fa);
     }
 
-    auto h1 = LoadAndPatch(L"f:\\tools\\mission6432\\fasmdll\\fasmdll.dll", &CustomPatching);
+    auto h1 = LoadAndPatch(L"..\\fasmdll\\fasmdll.dll", &CustomPatching);
     if (!h1)
         return 0;
 
